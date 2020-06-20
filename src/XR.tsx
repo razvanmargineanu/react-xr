@@ -1,6 +1,6 @@
 import * as React from 'react'
 import { Object3D, Matrix4, Raycaster, Intersection, Color } from 'three'
-import { XRControllerModelFactory } from 'three/examples/jsm/webxr/XRControllerModelFactory'
+import { XRControllerModelFactory } from './XrControllerModel/XRControllerModelFactory'
 import { Canvas, useThree, useFrame } from 'react-three-fiber'
 import { VRButton } from 'three/examples/jsm/webxr/VRButton'
 import { ARButton } from 'three/examples/jsm/webxr/ARButton'
