@@ -12,6 +12,7 @@
     "removeComments": true,
     "emitDeclarationOnly": true,
     "outDir": "dist",
+    "allowJs": true,
     "resolveJsonModule": true,
     "noImplicitThis": false,
     "baseUrl": "./src"
