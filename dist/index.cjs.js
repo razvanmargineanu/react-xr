@@ -11,222 +11,9 @@ var _extends = _interopDefault(require('@babel/runtime/helpers/extends'))
 var React = require('react')
 var React__default = _interopDefault(React)
 var three = require('three')
-var GLTFLoader = _interopDefault(require('three-gltf-loader'))
-var motionControllers_module = require('three/examples/jsm/libs/motion-controllers.module')
 var reactThreeFiber = require('react-three-fiber')
 var VRButton = require('three/examples/jsm/webxr/VRButton')
 var ARButton = require('three/examples/jsm/webxr/ARButton')
-
-/**
- * @author Nell Waliczek / https://github.com/NellWaliczek
- * @author Brandon Jones / https://github.com/toji
- */
-var DEFAULT_PROFILES_PATH = 'https://cdn.jsdelivr.net/npm/@webxr-input-profiles/assets@1.0/dist/profiles'
-var DEFAULT_PROFILE = 'generic-trigger'
-
-function XRControllerModel() {
-  three.Object3D.call(this)
-  this.motionController = null
-  this.envMap = null
-}
-
-XRControllerModel.prototype = Object.assign(Object.create(three.Object3D.prototype), {
-  constructor: XRControllerModel,
-  setEnvironmentMap: function setEnvironmentMap(envMap) {
-    var _this = this
-
-    if (this.envMap == envMap) {
-      return this
-    }
-
-    this.envMap = envMap
-    this.traverse(function (child) {
-      if (child.isMesh) {
-        child.material.envMap = _this.envMap
-        child.material.needsUpdate = true
-      }
-    })
-    return this
-  },
-
-  /**
-   * Polls data from the XRInputSource and updates the model's components to match
-   * the real world data
-   */
-  updateMatrixWorld: function updateMatrixWorld(force) {
-    three.Object3D.prototype.updateMatrixWorld.call(this, force)
-    if (!this.motionController) return // Cause the MotionController to poll the Gamepad for data
-
-    this.motionController.updateFromGamepad() // Update the 3D model to reflect the button, thumbstick, and touchpad state
-
-    Object.values(this.motionController.components).forEach(function (component) {
-      // Update node data based on the visual responses' current states
-      Object.values(component.visualResponses).forEach(function (visualResponse) {
-        var valueNode = visualResponse.valueNode,
-          minNode = visualResponse.minNode,
-          maxNode = visualResponse.maxNode,
-          value = visualResponse.value,
-          valueNodeProperty = visualResponse.valueNodeProperty // Skip if the visual response node is not found. No error is needed,
-        // because it will have been reported at load time.
-
-        if (!valueNode) return // Calculate the new properties based on the weight supplied
-
-        if (valueNodeProperty === motionControllers_module.Constants.VisualResponseProperty.VISIBILITY) {
-          valueNode.visible = value
-        } else if (valueNodeProperty === motionControllers_module.Constants.VisualResponseProperty.TRANSFORM) {
-          three.Quaternion.slerp(minNode.quaternion, maxNode.quaternion, valueNode.quaternion, value)
-          valueNode.position.lerpVectors(minNode.position, maxNode.position, value)
-        }
-      })
-    })
-  }
-})
-/**
- * Walks the model's tree to find the nodes needed to animate the components and
- * saves them to the motionContoller components for use in the frame loop. When
- * touchpads are found, attaches a touch dot to them.
- */
-
-function findNodes(motionController, scene) {
-  // Loop through the components and find the nodes needed for each components' visual responses
-  Object.values(motionController.components).forEach(function (component) {
-    var type = component.type,
-      touchPointNodeName = component.touchPointNodeName,
-      visualResponses = component.visualResponses
-
-    if (type === motionControllers_module.Constants.ComponentType.TOUCHPAD) {
-      component.touchPointNode = scene.getObjectByName(touchPointNodeName)
-
-      if (component.touchPointNode) {
-        // Attach a touch dot to the touchpad.
-        var sphereGeometry = new three.SphereGeometry(0.001)
-        var material = new three.MeshBasicMaterial({
-          color: 0x0000ff
-        })
-        var sphere = new three.Mesh(sphereGeometry, material)
-        component.touchPointNode.add(sphere)
-      } else {
-        console.warn('Could not find touch dot, ' + component.touchPointNodeName + ', in touchpad component ' + component.id)
-      }
-    } // Loop through all the visual responses to be applied to this component
-
-    Object.values(visualResponses).forEach(function (visualResponse) {
-      var valueNodeName = visualResponse.valueNodeName,
-        minNodeName = visualResponse.minNodeName,
-        maxNodeName = visualResponse.maxNodeName,
-        valueNodeProperty = visualResponse.valueNodeProperty // If animating a transform, find the two nodes to be interpolated between.
-
-      if (valueNodeProperty === motionControllers_module.Constants.VisualResponseProperty.TRANSFORM) {
-        visualResponse.minNode = scene.getObjectByName(minNodeName)
-        visualResponse.maxNode = scene.getObjectByName(maxNodeName) // If the extents cannot be found, skip this animation
-
-        if (!visualResponse.minNode) {
-          console.warn('Could not find ' + minNodeName + ' in the model')
-          return
-        }
-
-        if (!visualResponse.maxNode) {
-          console.warn('Could not find ' + maxNodeName + ' in the model')
-          return
-        }
-      } // If the target node cannot be found, skip this animation
-
-      visualResponse.valueNode = scene.getObjectByName(valueNodeName)
-
-      if (!visualResponse.valueNode) {
-        console.warn('Could not find ' + valueNodeName + ' in the model')
-      }
-    })
-  })
-}
-
-function addAssetSceneToControllerModel(controllerModel, scene) {
-  // Find the nodes needed for animation and cache them on the motionController.
-  findNodes(controllerModel.motionController, scene) // Apply any environment map that the mesh already has set.
-
-  if (controllerModel.envMap) {
-    scene.traverse(function (child) {
-      if (child.isMesh) {
-        child.material.envMap = controllerModel.envMap
-        child.material.needsUpdate = true
-      }
-    })
-  } // Add the glTF scene to the controllerModel.
-
-  controllerModel.add(scene)
-}
-
-var XRControllerModelFactory = (function () {
-  function XRControllerModelFactory(gltfLoader) {
-    if (gltfLoader === void 0) {
-      gltfLoader = null
-    }
-
-    this.gltfLoader = gltfLoader
-    this.path = DEFAULT_PROFILES_PATH
-    this._assetCache = {} // If a GLTFLoader wasn't supplied to the constructor create a new one.
-
-    if (!this.gltfLoader) {
-      this.gltfLoader = new GLTFLoader()
-    }
-  }
-
-  XRControllerModelFactory.prototype = {
-    constructor: XRControllerModelFactory,
-    createControllerModel: function createControllerModel(controller) {
-      var _this2 = this
-
-      var controllerModel = new XRControllerModel()
-      var scene = null
-      controller.addEventListener('connected', function (event) {
-        var xrInputSource = event.data
-        if (xrInputSource.targetRayMode !== 'tracked-pointer' || !xrInputSource.gamepad) return
-        motionControllers_module
-          .fetchProfile(xrInputSource, _this2.path, DEFAULT_PROFILE)
-          .then(function (_ref) {
-            var profile = _ref.profile,
-              assetPath = _ref.assetPath
-            controllerModel.motionController = new motionControllers_module.MotionController(xrInputSource, profile, assetPath)
-            var cachedAsset = _this2._assetCache[controllerModel.motionController.assetUrl]
-
-            if (cachedAsset) {
-              scene = cachedAsset.scene.clone()
-              addAssetSceneToControllerModel(controllerModel, scene)
-            } else {
-              if (!_this2.gltfLoader) {
-                throw new Error('GLTFLoader not set.')
-              }
-
-              _this2.gltfLoader.setPath('')
-
-              _this2.gltfLoader.load(
-                controllerModel.motionController.assetUrl,
-                function (asset) {
-                  _this2._assetCache[controllerModel.motionController.assetUrl] = asset
-                  scene = asset.scene.clone()
-                  addAssetSceneToControllerModel(controllerModel, scene)
-                },
-                null,
-                function () {
-                  throw new Error('Asset ' + controllerModel.motionController.assetUrl + ' missing or malformed.')
-                }
-              )
-            }
-          })
-          ['catch'](function (err) {
-            console.warn(err)
-          })
-      })
-      controller.addEventListener('disconnected', function () {
-        controllerModel.motionController = null
-        controllerModel.remove(scene)
-        scene = null
-      })
-      return controllerModel
-    }
-  }
-  return XRControllerModelFactory
-})()
 
 var XRController = {
   make: function make(id, gl) {
@@ -476,11 +263,9 @@ var useXREvent = function useXREvent(event, handler, _temp) {
 }
 function DefaultXRControllers() {
   var _useXR2 = useXR(),
-    controllers = _useXR2.controllers
+    controllers = _useXR2.controllers // const modelFactory = React.useMemo(() => new XRControllerModelFactory(), [])
 
-  var modelFactory = React.useMemo(function () {
-    return new XRControllerModelFactory()
-  }, [])
+  var modelFactory = React.useMemo(function () {}, [])
 
   var _React$useState3 = React.useState(new Map()),
     modelMap = _React$useState3[0]
@@ -524,17 +309,13 @@ function DefaultXRControllers() {
   var models = React.useMemo(
     function () {
       return controllers.map(function (_ref8) {
-        var _modelMap$get
-
         var controller = _ref8.controller,
           grip = _ref8.grip
         // Model factory listens for 'connect' event so we can only create models on inital render
-        var model = (_modelMap$get = modelMap.get(controller)) != null ? _modelMap$get : modelFactory.createControllerModel(controller)
-
-        if (modelMap.get(controller) === undefined) {
-          modelMap.set(controller, model)
-        }
-
+        // const model = modelMap.get(controller) ?? modelFactory.createControllerModel(controller)
+        // if (modelMap.get(controller) === undefined) {
+        //   modelMap.set(controller, model)
+        // }
         return /*#__PURE__*/ React.createElement(
           React.Fragment,
           {
@@ -565,17 +346,11 @@ function DefaultXRControllers() {
               })
             )
           ),
-          /*#__PURE__*/ React.createElement(
-            'primitive',
-            {
-              object: grip,
-              dispose: null,
-              key: grip.id
-            },
-            /*#__PURE__*/ React.createElement('primitive', {
-              object: model
-            })
-          )
+          /*#__PURE__*/ React.createElement('primitive', {
+            object: grip,
+            dispose: null,
+            key: grip.id
+          })
         )
       })
     },

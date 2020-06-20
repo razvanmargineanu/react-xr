@@ -1,6 +1,6 @@
 import * as React from 'react'
 import { Object3D, Matrix4, Raycaster, Intersection, Color } from 'three'
-import { XRControllerModelFactory } from './XrControllerModel/XRControllerModelFactory'
+// import { XRControllerModelFactory } from './XrControllerModel/XRControllerModelFactory'
 import { Canvas, useThree, useFrame } from 'react-three-fiber'
 import { VRButton } from 'three/examples/jsm/webxr/VRButton'
 import { ARButton } from 'three/examples/jsm/webxr/ARButton'
@@ -176,8 +176,8 @@ export const useXREvent = (
 export function DefaultXRControllers() {
   const { controllers } = useXR()
 
-  const modelFactory = React.useMemo(() => new XRControllerModelFactory(), [])
-
+  // const modelFactory = React.useMemo(() => new XRControllerModelFactory(), [])
+  const modelFactory = React.useMemo(() => {}, [])
   const [modelMap] = React.useState(new Map())
   const [rays] = React.useState(new Map<number, Object3D>())
 
@@ -215,11 +215,11 @@ export function DefaultXRControllers() {
     () =>
       controllers.map(({ controller, grip }) => {
         // Model factory listens for 'connect' event so we can only create models on inital render
-        const model = modelMap.get(controller) ?? modelFactory.createControllerModel(controller)
+        // const model = modelMap.get(controller) ?? modelFactory.createControllerModel(controller)
 
-        if (modelMap.get(controller) === undefined) {
-          modelMap.set(controller, model)
-        }
+        // if (modelMap.get(controller) === undefined) {
+        //   modelMap.set(controller, model)
+        // }
 
         return (
           <React.Fragment key={controller.id}>
@@ -230,7 +230,7 @@ export function DefaultXRControllers() {
               </mesh>
             </primitive>
             <primitive object={grip} dispose={null} key={grip.id}>
-              <primitive object={model} />
+              {/*<primitive object={model} />*/}
             </primitive>
           </React.Fragment>
         )
