@@ -2,11 +2,21 @@ import * as React from 'react'
 import { Object3D, Matrix4, Raycaster, Intersection, Color } from 'three'
 // import { XRControllerModelFactory } from './XrControllerModel/XRControllerModelFactory'
 import { Canvas, useThree, useFrame } from 'react-three-fiber'
-import { VRButton } from 'three/examples/jsm/webxr/VRButton'
-import { ARButton } from 'three/examples/jsm/webxr/ARButton'
+
+// import { VRButton } from 'three/examples/jsm/webxr/VRButton'
+
+// import { ARButton } from 'three/examples/jsm/webxr/ARButton'
+// import { ARButton } from './xr/ARButton.js'
+// import { VRButton } from './xr/VRButton.js'
+
 import { XRHandedness } from './webxr'
 import { XRController } from './XRController'
 import { ContainerProps } from 'react-three-fiber/targets/shared/web/ResizeContainer'
+
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const { VRButton } = require('./xr/VRButton')
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const { ARButton } = require('./xr/VRButton')
 
 const XRContext = React.createContext<{
   controllers: XRController[]
